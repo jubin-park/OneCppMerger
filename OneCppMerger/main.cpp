@@ -203,7 +203,8 @@ namespace merger
                 WriteCodeExceptPreprocessors(header + EXTENSIONS[extensionIndex], output);
             }
         }
-        WriteCodeExceptPreprocessors(MAIN_CPP_NAME, output);
+
+        WriteCodeExceptPreprocessors(type == eLanguage::CPP ? MAIN_CPP_NAME : MAIN_C_NAME, output);
 
         output.close();
     }
@@ -217,6 +218,7 @@ namespace merger
         {
             type = eLanguage::C;
             OpenFileRecursive(MAIN_C_NAME);
+            CreateMergedFile();
         }
         else if (IsFileExisted(MAIN_CPP_NAME))
         {
