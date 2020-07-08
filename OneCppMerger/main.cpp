@@ -103,7 +103,7 @@ namespace merger
                         innerHeaders.push_back(path);
                     }
 
-                    OpenFileRecursive(path);
+                    //OpenFileRecursive(path);
                 }
                 else if ((found = path.find(EXTERNAL_HEADER_HEAD) == 0))
                 {
@@ -121,7 +121,15 @@ namespace merger
                         outerHeaders.push_back(path);
                     }
 
-                    OpenFileRecursive(path);
+                    OpenFileRecursive(path + EXTENSIONS[2]);
+
+                    if (type == eLanguage::C) {
+                        OpenFileRecursive(path + EXTENSIONS[0]);
+                    }
+                    else if (type == eLanguage::CPP) {
+                        OpenFileRecursive(path + EXTENSIONS[1]);
+                    }
+                    
                 }
 
             }
