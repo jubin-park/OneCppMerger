@@ -119,15 +119,14 @@ namespace merger
                     if (std::find(outerHeaders.begin(), outerHeaders.end(), path) == outerHeaders.end())
                     {
                         outerHeaders.push_back(path);
-                    }
 
-                    OpenFileRecursive(path + EXTENSIONS[2]);
-
-                    if (type == eLanguage::C) {
-                        OpenFileRecursive(path + EXTENSIONS[0]);
-                    }
-                    else if (type == eLanguage::CPP) {
-                        OpenFileRecursive(path + EXTENSIONS[1]);
+                        OpenFileRecursive(path + EXTENSIONS[2]);
+                        if (type == eLanguage::C) {
+                            OpenFileRecursive(path + EXTENSIONS[0]);
+                        }
+                        else if (type == eLanguage::CPP) {
+                            OpenFileRecursive(path + EXTENSIONS[1]);
+                        }
                     }
                     
                 }
@@ -194,7 +193,6 @@ namespace merger
             return;
         }
 
-        output << PREPROCESSOR_PRAGMA_ONCE << '\n';
         for (auto& header : innerHeaders)
         {
             output << PREPROCESSOR_INCLUDE << ' ' << '<' << header << '>' << '\n';
