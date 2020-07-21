@@ -71,69 +71,74 @@ namespace merger
         std::string one;
         std::ifstream file(filename);
 
-        if (file.is_open())
+        if (!file.is_open())
         {
-            std::string line;
+            return;
+        }
 
-            while (std::getline(file, line))
+        char c;
+        do
+        {
+            file.get(c);
+        } while (c < 0);
+
+        long long offset = file.tellg();
+        if (offset > 0)
+        {
+            --offset;
+            file.seekg(offset);
+        }
+
+        // Line
+        std::string line;
+        while (std::getline(file, line))
+        {
+            line = Trim(line);
+
+            size_t found = line.find(PREPROCESSOR_INCLUDE);
+            if (found == std::string::npos)
             {
-                line = Trim(line);
+                continue;
+            }
 
-                size_t found = line.find(PREPROCESSOR_INCLUDE);
+            std::string path = Trim(line.substr(INCLUDE_LENGTH));
+
+            if ((found = path.find(INTERNAL_HEADER_HEAD)) == 0)
+            {
+                path = Trim(path.substr(1));
+
+                found = path.find(INTERNAL_HEADER_TAIL);
                 if (found == std::string::npos)
                 {
                     continue;
                 }
 
-                std::string path = Trim(line.substr(INCLUDE_LENGTH));
+                path = Trim(path.substr(0, found));
 
-                if ((found = path.find(INTERNAL_HEADER_HEAD)) == 0)
+                if (std::find(innerHeaders.begin(), innerHeaders.end(), path) == innerHeaders.end())
                 {
-                    path = Trim(path.substr(1));
-
-                    found = path.find(INTERNAL_HEADER_TAIL);
-                    if (found == std::string::npos)
-                    {
-                        continue;
-                    }
-
-                    path = Trim(path.substr(0, found));
-                    if (std::find(innerHeaders.begin(), innerHeaders.end(), path) == innerHeaders.end())
-                    {
-                        innerHeaders.push_back(path);
-                    }
-
-                    //OpenFileRecursive(path);
+                    innerHeaders.push_back(path);
                 }
-                else if ((found = path.find(EXTERNAL_HEADER_HEAD) == 0))
-                {
-                    path = path.substr(1);
-                                    
-                    found = path.find(EXTERNAL_HEADER_TAIL);
-                    if (found == std::string::npos)
-                    {
-                        continue;
-                    }
-                    path = GetFileNameOnly(path.substr(0, found));
-                    
-                    if (std::find(outerHeaders.begin(), outerHeaders.end(), path) == outerHeaders.end())
-                    {
-                        outerHeaders.push_back(path);
-
-                        OpenFileRecursive(path + EXTENSIONS[2]);
-                        if (type == eLanguage::C) {
-                            OpenFileRecursive(path + EXTENSIONS[0]);
-                        }
-                        else if (type == eLanguage::CPP) {
-                            OpenFileRecursive(path + EXTENSIONS[1]);
-                        }
-                    }
-                    
-                }
-
             }
-            file.close();
+            else if ((found = path.find(EXTERNAL_HEADER_HEAD)) == 0)
+            {
+                path = path.substr(1);
+                                    
+                found = path.find(EXTERNAL_HEADER_TAIL);
+                if (found == std::string::npos)
+                {
+                    continue;
+                }
+                path = GetFileNameOnly(path.substr(0, found));
+                    
+                if (std::find(outerHeaders.begin(), outerHeaders.end(), path) == outerHeaders.end())
+                {
+                    OpenFileRecursive(path + EXTENSIONS[2]);
+                    outerHeaders.push_back(path);
+                }
+            }
         }
+        file.close();
     }
 
     bool IsFileExisted(const std::string& filename)
@@ -150,28 +155,51 @@ namespace merger
     {
         std::ifstream file(filename);
 
-        if (file.is_open())
+        if (!file.is_open())
         {
-            std::string line;
+            return;
+        }
 
-            while (std::getline(file, line))
+        char c;
+        size_t offset = 0;
+        do
+        {
+            file.get(c);
+            ++offset;
+        } while (c < 0);
+
+        if (offset > 0)
+        {
+            --offset;
+        }
+        file.seekg(offset);
+
+        std::string line;
+
+        while (std::getline(file, line))
+        {
+            std::string trimmedLine(Trim(line));
+
+            size_t found = trimmedLine.find(PREPROCESSOR_INCLUDE);
+            if (found == 0)
             {
-                std::string trimmedLine(Trim(line));
-
-                size_t found = trimmedLine.find(PREPROCESSOR_INCLUDE);
-                if (found == 0)
-                {
-                    continue;
-                }
-
-                found = trimmedLine.find(PREPROCESSOR_PRAGMA_ONCE);
-                if (found == 0)
-                {
-                    continue;
-                }
-
-                ofstream << line << '\n';
+                continue;
             }
+
+            found = trimmedLine.find(PREPROCESSOR_PRAGMA_ONCE);
+            if (found == 0)
+            {
+                continue;
+            }
+
+            ofstream << line << '\n';
+        }
+
+        long long pos = ofstream.tellp();
+        if (pos >= 2)
+        {
+            ofstream.seekp(pos - 2);
+            ofstream << "\0\0";
         }
     }
 
@@ -193,17 +221,30 @@ namespace merger
             return;
         }
 
-        for (auto& header : innerHeaders)
+        // inner headers
+        for (const std::string& header : innerHeaders)
         {
             output << PREPROCESSOR_INCLUDE << ' ' << '<' << header << '>' << '\n';
         }
-        for (auto& header : outerHeaders)
+        long long pos = output.tellp();
+        if (pos >= 2)
+        {
+            output.seekp(pos - 2);
+            output << "\0\0";
+        }
+
+        // outer headers first
+        for (const std::string& header : outerHeaders)
         {
             if (IsFileExisted(header + EXTENSIONS[2]))
             {
                 WriteCodeExceptPreprocessors(header + EXTENSIONS[2], output);
             }
+        }
 
+        // outer sources second
+        for (const std::string& header : outerHeaders)
+        {
             if (IsFileExisted(header + EXTENSIONS[extensionIndex]))
             {
                 WriteCodeExceptPreprocessors(header + EXTENSIONS[extensionIndex], output);
